@@ -63,7 +63,7 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 
 El `GPIO_PIN_RESET` es porque al ser alimentado con 3.3 V del USB y observando el esquematico:
 
-![leds](/home/guido/facu/practicas/embebidos/assets/Foto_leds.png)
+![Foto_leds](https://github.com/Jfelipeper/Estamos_embebidos/assets/146991359/ff367080-ea63-4ad7-b018-2964826f60d9)
 
 Por lo que si esta en `SET` serian 3.3 V y como consecuencia no se prende el led.
 
@@ -110,8 +110,7 @@ Cuando probe hacer lo del punto 3 me pasa lo siguiente:
 
 Para la conexion de los pulsadores puse el `PB6` con el boton a tierra pues al pulsarlo pasaria a cero y para el `PB7` hice lo opuesto.
 
-![botones conectados](/home/guido/facu/practicas/embebidos/assets/Conexion_botones.jpg)
-
+![botones conectados](https://github.com/Jfelipeper/Estamos_embebidos/assets/146991359/151f1426-3435-4cb6-acbf-9a6710ccacdd)
 En cuanto a las macros, la verdad que no se si esta bien lo que hice pero puse esto que funciona (a mi gusto peor que la otra solucion):
 
 ```c
