@@ -106,16 +106,18 @@ int main(void)
 	  aux2=HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9);
 	  if(aux==PUSH){
 		  SW1=PUSH;
+		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 	  }
 	  else{
 	  SW1=NO_PUSH;
   }
 
 	  if(aux2!=PUSH){
-		  SW1=PUSH;
+		  SW2=PUSH;
+		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 	  }
 	  else{
-	  SW1=NO_PUSH;
+	  SW2=NO_PUSH;
   }
 
     /* USER CODE BEGIN 3 */
