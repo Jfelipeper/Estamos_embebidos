@@ -1,5 +1,12 @@
 # TP2
 
+## Bibliografia usada
+
+- [STM32f103xx reference manual](https://www.st.com/resource/en/reference_manual/rm0008-stm32f101xx-stm32f102xx-stm32f103xx-stm32f105xx-and-stm32f107xx-advanced-armbased-32bit-mcus-stmicroelectronics.pdf).
+- [Bit-band explanation](https://atadiat.com/en/e-bit-banding-explained-a-feature-of-arm-cortex-m3/).
+- [Cortex-M3 technical manual](https://www.keil.com/dd/docs/datashts/arm/cortex_m3/r2p0/ddi0337g_cortex_m3_r2p0_trm.pdf).
+- [STM32f103x8 datasheet](https://www.st.com/resource/en/datasheet/stm32f103c8.pdf).
+
 ## Ejercicio 1
 
 Yendo a la seccion `9.2.2` donde se ve como funciona el registro `GPIOx_CRH` para configurarlo. En este hay dos variables que controlan los pines:
@@ -7,9 +14,22 @@ Yendo a la seccion `9.2.2` donde se ve como funciona el registro `GPIOx_CRH` par
 - `CNF13` : Controla el modo en que funcion el pin.
 - `MODE13` : Controla la frecuencia de swichting del pin.
 
-Podemos poner `CNF13` en 01 para que este en open drain y el `MODE13` en 11 para que funcione en la maxima frecuencia.
+Podemos poner `CNF13` en 01 para que este en open drain y el `MODE13` en 11 para que funcione en la maxima frecuencia. Cabe aclarar que este registro para el port C esta en 0x4001 1004. Con esto hay que modificar el registro `GPIOx_ODR` que permite setear los pines por separado de modo que el bit `ODR13` se tiene que poner en 0 para que la salida sea nula y por lo tanto el led se prenda.
 
-El b era medio complicado porque no entendi muy bien como hacerlo.
+Para el `b` entiendo que el bit-band se puede hacer tal que:
+
+- `bit-band region periphericals` = 0x40000000
+  - Esta es donde estan los bits que pueden ser cambiados.
+
+* `bit-band alias periphericals` = 0x42000000
+  - Aca estan los alias que se cambian para modificar los bits en la bit-band region.
+* `bit-word offset` es la posicion del bit respecto al origen del bit-band.
+
+Entonces, se puede saber el alias tal que:
+
+bit_word_alias_add = bit_band_region + bit_word_offset = 0x4200 0000 + (0x04 + 0x02 + 0x0001 1000) _ 32 + 0x06 _ 4
+
+En este caso los bits 5-4 son para el MODE13 y los bits 7-6 para el CNF13.
 
 ## Ejercicio 2
 
@@ -103,3 +123,118 @@ En cuanto a lo que implementa el `while(1)`, ocurre lo siguiente:
 800016a:	e7fe      	b.n	800016a <main+0x1e>
  800016c:	20000028 	.word	0x20000028
 ```
+
+## Ejercicio 5
+
+La direccion base del RCC (Reset and clock control) es `0x4002 1000`.
+
+Asumiendo que nuevamente se quiere habilitar el pin del led incluido (GPIOC, PIN_13), de modo que se trabaja en el bus `APB2`. Ademas, para los clocks necesarios se tiene que el registro _APB2 peripherical clock enable register (RCC_APB2ENR)_ en el offset 0x18 permite habilitar el clock para el GPIOC con el bit 4 en alto.
+
+Los ultimos 3 puntos parecen una repeticion de lo que se hizo en el primero, por lo que procedo a no repetirlo. Entiendo que en definitiva es volver a la seccion _9_ donde se ve toda la configuracion.
+
+Igualmente entiendo que seria algo como esto:
+
+```c
+#define RCC_BASE 0x40021018
+#define OFFSET_APB2ENR 0x18
+#define BIT_PERIFERICO 0x04
+
+#define GPIOC_BASE 0x40011000
+#define GPIOC_CRH_OFFSET 0x04
+#define GPIOC_CRH_PIN13_OFFSET 20
+#define GPIOC_ODR_OFFSET 0x0C
+#define GPIOC_ODR_PIN13_OFFSET 13
+
+uint32_t *const RCC_APB2ENR = RCC_BASE + OFFSET_APB2ENR;
+uint32_t *const GPIOC_CRH = GPIOC_BASE + GPIOC_CRH_OFFSET;
+uint32_t *const GPIOC_ODR = GPIOC_BASE + GPIOC_ODR_OFFSET;
+
+int main(){
+    // habilita el clock para el GPIOC
+    *RCC_APB2ENR |= ( 1 << BIT_PERIFERICO);
+
+    // habilita el pin del PIN 13 como salida a 2 MHz de ancho de banda
+    *GPIOC_CRH &= ~( 0xF << GPIOC_CRH_PIN13_OFFSET );
+    *GPIOC_CRH |= ( 0b0010 << GPIOC_CRH_PIN13_OFFSET );
+
+    // enciende el led
+    *GPIOC_ODR |= ( 1 << GPIOC_ODR_PIN13_OFFSET );
+
+    return 0;
+}
+```
+
+## Ejercicio 6
+
+```c
+
+#define ITER_ESPERA 400000
+
+//declaracion de las funciones
+void configurar_led();
+void prender_led();
+void apagar_led();
+void esperar(uint32_t tiempo);
+
+void main()
+{
+    configurar_led();
+    while(1){
+        prender_led();
+        esperar(ITER_ESPERA);
+        apagar_led();
+        esperar(ITER_ESPERA);
+    }
+}
+
+
+void configurar_led(){
+
+    const uint32_t GPIOC_BASE 0x40011000
+    const uint32_t GPIOC_CRH_OFFSET 0x04
+    const uint32_t GPIOC_CRH_PIN13_OFFSET 20
+    const uint32_t  RCC_BASE 0x40021018
+    const uint32_t  OFFSET_APB2ENR 0x18
+    const uint32_t  BIT_PERIFERICO 0x04
+
+    uint32_t *const RCC_APB2ENR = RCC_BASE + OFFSET_APB2ENR;
+    uint32_t *const GPIOC_CRH = GPIOC_BASE + GPIOC_CRH_OFFSET;
+
+    // habilita el clock para el GPIOC
+    *RCC_APB2ENR |= ( 1 << BIT_PERIFERICO);
+
+    // habilita el pin del PIN 13 como salida a 2 MHz de ancho de banda
+    *GPIOC_CRH &= ~( 0xF << GPIOC_CRH_PIN13_OFFSET );
+    *GPIOC_CRH |= ( 0b0010 << GPIOC_CRH_PIN13_OFFSET );
+}
+
+
+
+
+// implementacion de las funciones
+void prender_led(){
+    const uint32_t GPIOC_ODR_OFFSET 0x0C
+    const uint32_t GPIOC_BASE 0x40011000
+    const uint32_t GPIOC_ODR_PIN13_OFFSET 13
+    uint32_t *const GPIOC_ODR = GPIOC_BASE + GPIOC_ODR_OFFSET;
+
+    // enciende el led
+    *GPIOC_ODR |= ( 1 << GPIOC_ODR_PIN13_OFFSET );
+}
+
+void apagar_led(){
+    const uint32_t GPIOC_ODR_OFFSET 0x0C
+    const uint32_t GPIOC_BASE 0x40011000
+    const uint32_t GPIOC_ODR_PIN13_OFFSET 13
+    uint32_t *const GPIOC_ODR = GPIOC_BASE + GPIOC_ODR_OFFSET;
+
+    // apaga el led
+    *GPIOC_ODR &= ~( 1 << GPIOC_ODR_PIN13_OFFSET );
+}
+
+void esperar(uint32_t iter){
+    for(uint32_t i = 0; i < iter; i++);
+}
+```
+
+Faltaria todo lo de hacer con el analizador logico y ajustar la cantidad de iteraciones para llegar a que sea de a 10 Hz con el loop.
