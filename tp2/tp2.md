@@ -27,7 +27,7 @@ Para el `b` entiendo que el bit-band se puede hacer tal que:
 
 Entonces, se puede saber el alias tal que:
 
-bit_word_alias_add = bit_band_region + bit_word_offset = 0x4200 0000 + (0x04 + 0x02 + 0x0001 1000) _ 32 + 0x06 _ 4
+bit*word_alias_add = bit_band_region + bit_word_offset = 0x4200 0000 + (0x04 + 0x02 + 0x0001 1000) * 32 + 0x06 \_ 4
 
 En este caso los bits 5-4 son para el MODE13 y los bits 7-6 para el CNF13.
 
@@ -128,7 +128,7 @@ En cuanto a lo que implementa el `while(1)`, ocurre lo siguiente:
 
 La direccion base del RCC (Reset and clock control) es `0x4002 1000`.
 
-Asumiendo que nuevamente se quiere habilitar el pin del led incluido (GPIOC, PIN_13), de modo que se trabaja en el bus `APB2`. Ademas, para los clocks necesarios se tiene que el registro _APB2 peripherical clock enable register (RCC_APB2ENR)_ en el offset 0x18 permite habilitar el clock para el GPIOC con el bit 4 en alto.
+Asumiendo que nuevamente se quiere habilitar el pin del led incluido (GPIOC, PIN*13), de modo que se trabaja en el bus `APB2`. Ademas, para los clocks necesarios se tiene que el registro \_APB2 peripherical clock enable register (RCC_APB2ENR)* en el offset 0x18 permite habilitar el clock para el GPIOC con el bit 4 en alto.
 
 Los ultimos 3 puntos parecen una repeticion de lo que se hizo en el primero, por lo que procedo a no repetirlo. Entiendo que en definitiva es volver a la seccion _9_ donde se ve toda la configuracion.
 
@@ -190,12 +190,12 @@ void main()
 
 void configurar_led(){
 
-    const uint32_t GPIOC_BASE 0x40011000
-    const uint32_t GPIOC_CRH_OFFSET 0x04
-    const uint32_t GPIOC_CRH_PIN13_OFFSET 20
-    const uint32_t  RCC_BASE 0x40021018
-    const uint32_t  OFFSET_APB2ENR 0x18
-    const uint32_t  BIT_PERIFERICO 0x04
+    const uint32_t GPIOC_BASE 0x40011000;
+    const uint32_t GPIOC_CRH_OFFSET 0x04;
+    const uint32_t GPIOC_CRH_PIN13_OFFSET 20;
+    const uint32_t  RCC_BASE 0x40021018;
+    const uint32_t  OFFSET_APB2ENR 0x18;
+    const uint32_t  BIT_PERIFERICO 0x04;
 
     uint32_t *const RCC_APB2ENR = RCC_BASE + OFFSET_APB2ENR;
     uint32_t *const GPIOC_CRH = GPIOC_BASE + GPIOC_CRH_OFFSET;
@@ -213,9 +213,9 @@ void configurar_led(){
 
 // implementacion de las funciones
 void prender_led(){
-    const uint32_t GPIOC_ODR_OFFSET 0x0C
-    const uint32_t GPIOC_BASE 0x40011000
-    const uint32_t GPIOC_ODR_PIN13_OFFSET 13
+    const uint32_t GPIOC_ODR_OFFSET 0x0C;
+    const uint32_t GPIOC_BASE 0x40011000;
+    const uint32_t GPIOC_ODR_PIN13_OFFSET 13;
     uint32_t *const GPIOC_ODR = GPIOC_BASE + GPIOC_ODR_OFFSET;
 
     // enciende el led
@@ -223,9 +223,9 @@ void prender_led(){
 }
 
 void apagar_led(){
-    const uint32_t GPIOC_ODR_OFFSET 0x0C
-    const uint32_t GPIOC_BASE 0x40011000
-    const uint32_t GPIOC_ODR_PIN13_OFFSET 13
+    const uint32_t GPIOC_ODR_OFFSET 0x0C;
+    const uint32_t GPIOC_BASE 0x40011000;
+    const uint32_t GPIOC_ODR_PIN13_OFFSET 13;
     uint32_t *const GPIOC_ODR = GPIOC_BASE + GPIOC_ODR_OFFSET;
 
     // apaga el led
@@ -238,3 +238,124 @@ void esperar(uint32_t iter){
 ```
 
 Faltaria todo lo de hacer con el analizador logico y ajustar la cantidad de iteraciones para llegar a que sea de a 10 Hz con el loop.
+
+## Ejercicio 7
+
+Para agregar el pulsador utilizaria lo mismo que en el 6 pero ahora tengo que crear dos nuevas funciones y modificar el main. Para hacerlo, voy a poner un switch en el pin 10 del GPIOC para poder reutilzar algo del codigo anterior.
+
+Funciones:
+
+```c
+void configurar_switch(){
+    const uint32_t GPIOC_BASE 0x40011000;
+    const uint32_t GPIOC_CRH_OFFSET 0x04;
+    const uint32_t GPIOC_CRH_PIN10_OFFSET 8;
+    const uint32_t GPIOC_ODR_OFFSET 0x0C;
+    const uint32_t GPIOC_ODR_PIN10_OFFSET 10;
+    const uint32_t  RCC_BASE 0x40021018;
+    const uint32_t  OFFSET_APB2ENR 0x18;
+    const uint32_t  BIT_PERIFERICO 0x04;
+
+
+    uint32_t *const GPIOC_CRH = GPIOC_BASE + GPIOC_CRH_OFFSET;
+    uint32_t *const GPIOC_ODR = GPIOC_BASE + GPIOC_ODR_OFFSET;
+    uint32_t *const RCC_APB2ENR = RCC_BASE + OFFSET_APB2ENR;
+
+    // habilita el clock para el GPIOC
+    *RCC_APB2ENR |= ( 1 << BIT_PERIFERICO);
+
+    // habilita el pin 10 como input con pull-down
+    *GPIOC_CRH &= ~( 0xF << GPIOC_CRH_PIN10_OFFSET );
+    *GPIOC_CRH |= ( 0b1000 << GPIOC_CRH_PIN10_OFFSET );
+
+    // como ODR viene en reset lo dejo como esta y ya esta en pull-down
+}
+
+uint8_t leer_switch(){
+    const uint32_t GPIOC_BASE 0x40011000;
+    const uint32_t GPIOC_IDR_OFFSET 0x08;
+    const uint32_t GPIOC_ODR_PIN10_OFFSET 10;
+
+    uint32_t *const GPIOC_IDR = GPIOC_BASE + GPIOC_IDR_OFFSET;
+
+    return (*GPIOC_IDR) & ( 1 <<  GPIOC_ODR_PIN10_OFFSET );
+}
+```
+
+Ademas el main se debe modificar para poder hacer los cambios necesarios tal que:
+```c
+
+enum state{inicio, led_1Hz, led_10Hz};
+enum led{encendido, apagado};
+
+void main(){
+    enum state maquina;
+    enum led previo_led;
+    uint8_t sw;
+    maquina = inicio;
+
+    while(1){
+        sw = leer_switch();
+
+        switch(maquina){
+            case inicio:
+                configurar_switch();
+                configurar_led();
+                apagar_led();
+                if (sw != 0) maquina = led_10Hz;
+                else maquina = led_1Hz;
+                break;
+
+            case led_1Hz:
+                if(previo_led == apagado) {
+                    prender_led();
+                    previo_led = encendido;
+                }
+                else {
+                    apagar_led();
+                    previo_led = apagado;
+                }
+                wait_time = 1;
+                maquina = esperar;
+                if (sw != 0) maquina = led_10Hz;
+                break;
+
+            case led_10Hz:
+                if(previo_led == apagado) {
+                    prender_led();
+                    previo_led = encendido;
+                }
+                else {
+                    apagar_led();
+                    previo_led = apagado;
+                }
+                wait_time = 10;
+                maquina = esperar;
+                if (sw == 0) maquina = led_1Hz;
+                break;
+
+            case esperar:
+                esperar(wait_time);
+                if(sw != 0) maquina = led_10Hz;
+                else maquina = led_1Hz;
+                break;
+        }
+    }
+}
+```
+
+Con esto deberia ser suficiente para hacer que lo detecte, teniendo el cuenta que la espera es bloqueante y no podra cambiar mientras espera, unicamente durante los cambios de estados para la maquina.
+
+Un diagrama de estados parecido es el siguiente:
+
+```mermaid
+graph LR
+    inicio -- sw=0 --> led_1Hz
+    inicio -- sw=1 --> led_10Hz
+    led_1Hz -- sw=0--> esperar
+    led_1Hz -- sw=1 --> led_10Hz
+    led_10Hz -- sw=1 --> esperar
+    led_10Hz -- sw=0 --> led_1Hz
+    esperar -- sw=0 --> led_1Hz
+    esperar -- sw=1 --> led_10Hz
+```
