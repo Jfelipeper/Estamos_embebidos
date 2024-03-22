@@ -34,7 +34,7 @@
 #define RCC_BASE 0x40021000
 #define OFFSET_RCC_APB2ENR 0x18
 #define BIT_PERFIFERICO 4
-#define GPIOC_BASE 0X40011000
+#define GPIOC_BASE 0x40011000
 #define GPIO_CRHC_OFF 0x04
 #define GPIO_ODR_OFF 0x0C
 
@@ -73,13 +73,13 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	*RCC_APB2 = *RCC_APB2 | (1 << BIT_PERIFERICO);
+	*RCC_APB2 = *RCC_APB2 | (1 << BIT_PERFIFERICO);
 	*GPIO13 &=~(0x0f<<20);
 	*GPIO13|=(0x03<<20);
 	*GPIOODR &=~(0x01<<13); 		// YA me prende el LED!
 	*GPIOODR|=(0x01<<13);			// Apago el Led!
-	
-	
+
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
