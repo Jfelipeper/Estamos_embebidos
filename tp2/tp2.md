@@ -135,7 +135,7 @@ Los ultimos 3 puntos parecen una repeticion de lo que se hizo en el primero, por
 Igualmente entiendo que seria algo como esto:
 
 ```c
-#define RCC_BASE 0x40021018
+#define RCC_BASE 0x40021000
 #define OFFSET_APB2ENR 0x18
 #define BIT_PERIFERICO 0x04
 
@@ -193,7 +193,7 @@ void configurar_led(){
     const uint32_t GPIOC_BASE 0x40011000;
     const uint32_t GPIOC_CRH_OFFSET 0x04;
     const uint32_t GPIOC_CRH_PIN13_OFFSET 20;
-    const uint32_t  RCC_BASE 0x40021018;
+    const uint32_t  RCC_BASE 0x40021000;
     const uint32_t  OFFSET_APB2ENR 0x18;
     const uint32_t  BIT_PERIFERICO 0x04;
 
@@ -358,4 +358,16 @@ graph LR
     led_10Hz -- sw=0 --> led_1Hz
     esperar -- sw=0 --> led_1Hz
     esperar -- sw=1 --> led_10Hz
+```
+
+## Ejercicio 8
+
+Para esto usamos el el timer 2 porque es mas simple que el 1 de usar, y no necesitamos mucha cosa para hacerlo andar. Para esto hay que tener en cuenta que el timer funcionara en funcion del clock seleccionado originalmente, que en el caso de los proyectos nuestros es de 72 MHz.
+
+Por lo tanto, para hacer una funcion que dado un entero pare cierta cantidad de ms, se puede plantear lo siguiente:
+
+```c
+void wait_ms(uint32_t ms){
+    
+}
 ```
