@@ -384,37 +384,57 @@ Entonces, para tener un reloj de 1 MHz con un clock de 72 MHz simplemente se deb
 Por lo tanto, para hacer una funcion que dado un entero pare cierta cantidad de ms, se puede plantear lo siguiente:
 
 ```c
+#define RCC_BASE 0x40021000
+#define RCC_APB1ENR 0x1C
+#define CEN_BIT 0x00
+#define ARPE_BIT 0x07
+#define TIM3_BASE 0x40000400
+#define TIM3_CR1 0x00
+#define TIM3_PSC 0x28
+#define RCC_APB1ENR_TIM3_BIT 1
+#define CEN_BIT 0x00
+#define ARPE_BIT 0x07
+#define UG_BIT 0x00
+#define TIM3_EGR 0x14
+#define TIM3_ARR 0x2C
+#define TIM3_SR 0x10
 
+...
+
+void main (){
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+	for(int i = 0;i < 20;i++) wait_ms(65);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+    for(int i = 0;i < 20;i++) wait_ms(65);
+}
+
+...
+
+
+// USER CODE 4
 void configurar_timer_1MHz(){
-    // direcciones para habilitar clock
-    const uint32_t RCC_APB1ENR_TIM3_BIT=1;
-    const uint32_t RCC_BASE=0x40023800;
-    const uint32_t* RCC_APB1ENR=0x1C+RCC_BASE;
-
-    // direcciones del timer
-    const uint32_t CEN_BIT=0x00;
-    const uint32_t ARPE_BIT=0x07;
-    const uint32_t TIM3_BASE=0x40000400;
-    const uint32_t* TIM3_CR1=TIM3_BASE+0x00;
-    const uint32_t* TIM3_PSC=TIM3_BASE+0x28;
+	uint32_t *const RCCAPB1ENR = RCC_BASE + RCC_APB1ENR;
+	uint32_t *const TIM3PSC = TIM3_BASE + TIM3_PSC;
+	uint32_t *const TIM3CR1 = TIM3_BASE + TIM3_CR1;
 
     // habilitar clock
-    *RCC_APB1ENR |= (1 << RCC_APB1ENR_TIM3_BIT);
+    *RCCAPB1ENR |= (1 << RCC_APB1ENR_TIM3_BIT);
 
     // configurar el timer
-    *TIM3_PSC = 71;
-    *TIM3_CR1 |= (1 << CEN_BIT) | (1 << ARPE_BIT);
+    *TIM3PSC = (uint32_t) 71;
+    *TIM3CR1 |= (1 << CEN_BIT) | (1 << ARPE_BIT);
 }
 
 void wait_ms(uint32_t ms){
-    const uint32_t UG_BIT=0x00;
-    const uint32_t TIM3_BASE=0x40000400;
-    const uint32_t* TIM3_EGR=TIM3_BASE+0x14;
-    const uint32_t* TIM3_ARR=TIM3_BASE+0x2C;
+	uint32_t *const TIM3ARR = TIM3_BASE + TIM3_ARR;
+	uint32_t *const TIM3EGR = TIM3_BASE + TIM3_EGR;
+	uint32_t *const TIM3SR = TIM3_BASE + TIM3_SR;
 
-    *TIM3_ARR = ms;
-    *TIM3_EGR |= (1 << UG_BIT);
+    *TIM3ARR = 1000*ms;
+    *TIM3EGR |= (1 << UG_BIT);
+    *TIM3SR &= ~(1 << 0);
 
-    
+    while((*TIM3SR && (0x01<<0)) == 1);
 }
+
 ```
