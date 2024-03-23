@@ -283,6 +283,7 @@ uint8_t leer_switch(){
 ```
 
 Ademas el main se debe modificar para poder hacer los cambios necesarios tal que:
+
 ```c
 
 enum state{inicio, led_1Hz, led_10Hz};
@@ -364,10 +365,56 @@ graph LR
 
 Para esto usamos el el timer 2 porque es mas simple que el 1 de usar, y no necesitamos mucha cosa para hacerlo andar. Para esto hay que tener en cuenta que el timer funcionara en funcion del clock seleccionado originalmente, que en el caso de los proyectos nuestros es de 72 MHz.
 
+Por otro lado, el `TIM3` esta en el `APB1`, por lo que es necesario habilitar el clock antes que nada. Con esto, se puede proseguir configurando los siguientes registros:
+
+|                    | `TIM3_PSC`    | `TIM3_CR1` | `TIM3_ARR`       | `TIM_EGR` |
+| ------------------ | ------------- | ---------- | ---------------- | --------- |
+| _Direccion offset_ | 0x28          | 0x00       | 0x2C             | 0x14      |
+| _Bits config_      | PSC[0:15] =71 | `CEN` = 1  | ARR[0:15] = 1000 | `UG` = 1  |
+| -                  | -             | `ARPE` = 1 | -                | -         |
+
+El `TIM3_CR1` es uno de los dos registros de control sobre los timers generales, de modo que el bit `CEN` habilita el counter para que comienze y el `ARPE` lo configura para que funcione en modo auto-reload. Este modo es para que al llegar al numero indicado por `TIM3_ARR` vuelva a cero y tire una flag de que se llego al compare.
+
+Por otro lado, para que no tengamos que poner un numero muy grande, se puede usar un prescaler `TIM3_PSC` que modifica la frecuencia del counter con la siguiente formula:
+
+$$ f*{counter} = \frac{f*{clock}}{PSC[0:15] + 1} $$
+
+Entonces, para tener un reloj de 1 MHz con un clock de 72 MHz simplemente se debe poner PSC[0:15]=71. Despues, con el `TIM3_ARR` se pone el numero de ms y ya se tiene un contador de milisegundos. Sin embargo, ocurre que no se actualiza `TIM3_ARR` hasta que no llega a la comparacion, por lo que es impredecible lo que pueda tardar y por lo que el mejor metodo es forzar una actualizacion con el `TIM_EGR` con el bit `UG`.
+
 Por lo tanto, para hacer una funcion que dado un entero pare cierta cantidad de ms, se puede plantear lo siguiente:
 
 ```c
+
+void configurar_timer_1MHz(){
+    // direcciones para habilitar clock
+    const uint32_t RCC_APB1ENR_TIM3_BIT=1;
+    const uint32_t RCC_BASE=0x40023800;
+    const uint32_t* RCC_APB1ENR=0x1C+RCC_BASE;
+
+    // direcciones del timer
+    const uint32_t CEN_BIT=0x00;
+    const uint32_t ARPE_BIT=0x07;
+    const uint32_t TIM3_BASE=0x40000400;
+    const uint32_t* TIM3_CR1=TIM3_BASE+0x00;
+    const uint32_t* TIM3_PSC=TIM3_BASE+0x28;
+
+    // habilitar clock
+    *RCC_APB1ENR |= (1 << RCC_APB1ENR_TIM3_BIT);
+
+    // configurar el timer
+    *TIM3_PSC = 71;
+    *TIM3_CR1 |= (1 << CEN_BIT) | (1 << ARPE_BIT);
+}
+
 void wait_ms(uint32_t ms){
+    const uint32_t UG_BIT=0x00;
+    const uint32_t TIM3_BASE=0x40000400;
+    const uint32_t* TIM3_EGR=TIM3_BASE+0x14;
+    const uint32_t* TIM3_ARR=TIM3_BASE+0x2C;
+
+    *TIM3_ARR = ms;
+    *TIM3_EGR |= (1 << UG_BIT);
+
     
 }
 ```
