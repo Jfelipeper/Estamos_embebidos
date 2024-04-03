@@ -1,0 +1,12 @@
+../Core/Src/main.c:76:6:RTC_GetTimeStr	1
+../Core/Src/main.c:88:6:GetTemperatura	3
+../Core/Src/main.c:112:6:iniciosd	1
+../Core/Src/main.c:121:6:flectura	3
+../Core/Src/main.c:155:5:main	27
+../Core/Src/main.c:277:6:SystemClock_Config	4
+../Core/Src/main.c:323:13:MX_ADC1_Init	3
+../Core/Src/main.c:370:13:MX_RTC_Init	4
+../Core/Src/main.c:428:13:MX_SPI1_Init	2
+../Core/Src/main.c:466:13:MX_USART1_UART_Init	2
+../Core/Src/main.c:499:13:MX_GPIO_Init	1
+../Core/Src/main.c:548:6:Error_Handler	1

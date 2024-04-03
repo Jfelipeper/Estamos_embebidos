@@ -1,0 +1,12 @@
+../Core/Src/main.c:76:6:RTC_GetTimeStr	32	static
+../Core/Src/main.c:88:6:GetTemperatura	96	static
+../Core/Src/main.c:112:6:iniciosd	56	static
+../Core/Src/main.c:121:6:flectura	104	static
+../Core/Src/main.c:155:5:main	8352	static
+../Core/Src/main.c:277:6:SystemClock_Config	88	static
+../Core/Src/main.c:323:13:MX_ADC1_Init	24	static
+../Core/Src/main.c:370:13:MX_RTC_Init	16	static
+../Core/Src/main.c:428:13:MX_SPI1_Init	8	static
+../Core/Src/main.c:466:13:MX_USART1_UART_Init	8	static
+../Core/Src/main.c:499:13:MX_GPIO_Init	40	static
+../Core/Src/main.c:548:6:Error_Handler	4	static,ignoring_inline_asm
