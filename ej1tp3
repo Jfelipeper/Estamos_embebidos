@@ -1,0 +1,144 @@
+main.c:
+
+#include <stdint.h>
+#include "startup.h"
+#include "led.h"
+#include "tmr.h"
+
+#if !defined(__SOFT_FP__) && defined(__ARM_FP)
+  #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
+#endif
+
+volatile uint32_t ms = 1000;
+int main(){
+	configura_led();
+	configura_timer();
+
+	while(1){
+		prende_led();
+		//espera(ITER_ESPERA);
+		espera_ms(ms);
+		apaga_led();
+		//espera(ITER_ESPERA);
+		espera_ms(ms);
+	}
+}
+
+
+led.c:
+
+#include <stdint.h>
+
+void configura_led();
+void prende_led();
+void apaga_led();
+#define RCC_BASE 0x40021000 /** Reference manual - p.
+50 **/
+#define RCC_APB2ENR *((volatile uint32_t *)(RCC_BASE + 0x18)) /** p. 112 **/
+#define RCC_APB2ENR_IOPCEN (1<<4) /** p. 114 **/
+#define GPIOC_BASE 0x40011000 /** Reference manual - p.
+51 **/
+#define GPIOC_CRH *((volatile uint32_t *)(GPIOC_BASE + 0x04)) /** p. 172 **/
+#define GPIOC_CRH_MODE13_0 (1<<20)
+#define GPIOC_CRH_MODE13_1 (1<<21)
+#define GPIOC_CRH_CNF13_0 (1<<22)
+#define GPIOC_CRH_CNF13_1 (1<<23)
+
+void configura_led(){
+	RCC_APB2ENR |= RCC_APB2ENR_IOPCEN;
+	// establece PC13 como salida push-pull / 2MHz max
+	GPIOC_CRH &= ~(GPIOC_CRH_MODE13_0|GPIOC_CRH_MODE13_1|
+	GPIOC_CRH_CNF13_0|GPIOC_CRH_CNF13_1); //pongo los 4 bits en cero
+	GPIOC_CRH |= GPIOC_CRH_MODE13_1;
+}
+
+#define GPIOC_ODR *((volatile uint32_t *)(GPIOC_BASE + 0x0C)) /** p. 173 **/
+
+void prende_led(){
+	 // prende el LED - poniendo a GND PC13
+	 GPIOC_ODR &= ~(1 << 13);
+}
+
+void apaga_led(){
+	 // apaga el LED - poniendo a VDD PC13
+	 GPIOC_ODR |= (1 << 13);
+}
+
+
+tmr.c:
+
+#include <stdint.h>
+#include <stdio.h>
+#define RCC_BASE 0x40021000
+#define RCC_APB1ENR *((volatile uint32_t *)(RCC_BASE + 0x1C))
+#define RCC_APB1ENR_TIM3EN (1<<1)
+#define TIM3_BASE 0x40000400 /** Reference manual - p. 50 **/
+#define TIM3_CR1 *((volatile uint32_t *)(TIM3_BASE + 0x00))
+#define TIM3_PSC *((volatile uint32_t *)(TIM3_BASE + 0x28))
+#define TIM3_ARR *((volatile uint32_t *)(TIM3_BASE + 0x2C))
+#define TIM3_EGR *((volatile uint32_t *)(TIM3_BASE + 0x14))
+void configura_timer(){
+	// Habilita el clock del TIM3
+	RCC_APB1ENR |= RCC_APB1ENR_TIM3EN;
+	//configura TMR3
+	// Resetea CR1 por las dudas
+	TIM3_CR1 = 0x0000;
+	// fCK_PSC / (PSC[15:0] + 1)
+	// 8 Mhz / 7 + 1 = 1 Mhz
+	TIM3_PSC = 7;
+	// Seteo ARR al máximo valor, total el contador se resetea al llegar a 1000
+	TIM3_ARR = 0xFFFF;
+	// Habilito el TIM3
+	TIM3_CR1 |= (1 << 0);
+	// Genero evento de upgrade que lleva el periférico a un estado conocido (EVITA BUG AL RESTEAR)
+	TIM3_EGR |= (1 << 0);
+	}
+#define TIM3_CNT *((volatile uint32_t *)(TIM3_BASE + 0x24))
+void espera_ms(uint32_t ms)
+{
+// Habilito el TIM3
+TIM3_CR1 |= (1 << 0);
+for(; ms>0; ms--){
+TIM3_CNT = 0;
+while(TIM3_CNT < 1000);
+}
+// Resetea CR1 por las dudas
+TIM3_CR1 = 0x0000;
+}
+
+
+startup.c:
+
+#include <stdint.h>
+void _start(void);
+int main();
+void null_handler();
+
+__attribute__((section(".isr_vectors")))
+const uint32_t vectores[] ={
+ 0x20005000, //final de la ram para dispositivo de 20kB
+ (uint32_t)_start,
+ (uint32_t)null_handler, /*NMI*/
+ (uint32_t)null_handler, /*Hard Fault*/
+ (uint32_t)null_handler, /*Memory Management Fault*/
+ (uint32_t)null_handler, /*Bus Fault*/
+ (uint32_t)null_handler, /*Usage Fault*/
+ };
+/*void _start(void)
+{
+ // sección .bss (inicializada en cero)
+ extern uint8_t _sbss, _ebss;
+ uint8_t *dst;
+ for (dst = &_sbss; dst < &_ebss;)
+ *dst++ = 0;
+ // sección .data (se copian valores de la FLASH a la RAM)
+ uint8_t *src;
+ extern uint8_t _sidata, _sdata, _edata;
+ for (dst = &_sdata, src = &_sidata; dst < &_edata;)
+ *dst++ = *src++;
+ main();
+ while (1);
+}*/
+void null_handler(){
+ while(1);
+}
