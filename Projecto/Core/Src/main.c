@@ -35,10 +35,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TEMP_RESOLUTION 100000
-#define MINUTE_TICK_OFFSET 600
-#define WAIT_5SEC_OFFSET 5000
-#define WAIT_2SEC_OFFSET 1000
+#define TEMP_RESOLUTION 10000
+#define MINUTE_TICK_OFFSET 6000
+#define WAIT_5SEC_OFFSET 500
+#define WAIT_2SEC_OFFSET 200
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -106,9 +106,11 @@ void GetTemperatura(char *timeStr) {
     adc_value = HAL_ADC_GetValue(&hadc1);
   }
   HAL_ADC_Stop(&hadc1);
-  adc_value1 = (((adc_value * 100000) / 4096) * 3.3 * 100) - 5000000;
-  parte_entera = adc_value1 / 100000;
-  parte_decimal = abs(adc_value1 % (parte_entera * 100000));
+  HAL_Delay(1000);
+  adc_value1 = (((adc_value * TEMP_RESOLUTION) / 4096) * 3.3 * 100) -
+               50 * TEMP_RESOLUTION;
+  parte_entera = adc_value1 / TEMP_RESOLUTION;
+  parte_decimal = abs(adc_value1 % (parte_entera * TEMP_RESOLUTION));
   parte_decimal = parte_decimal / 1000;
 
   sprintf(Cadena, "%s %d,%0.2d °C\n\r", timeStr, parte_entera, parte_decimal);
@@ -143,12 +145,14 @@ void flectura(FATFS fs, FIL fil) {
     adcValue = HAL_ADC_GetValue(&hadc1);
   }
   HAL_ADC_Stop(&hadc1);
-  adcValue = (((adcValue * TEMP_RESOLUTION) / 4096) * 330) - 50 * TEMP_RESOLUTION;
+  adcValue =
+      (((adcValue * TEMP_RESOLUTION) / 4096) * 330) - 50 * TEMP_RESOLUTION;
   entero = adcValue / TEMP_RESOLUTION;
   decimal = (adcValue % (entero * TEMP_RESOLUTION)) / 100;
 
   // Formatea la hora como una cadena de caracteres y la guarda en el buffer
-  sprintf(buffer, "| %02d:%02d:%02d | %d,%d °C |\r\n", sTime.Hours, sTime.Minutes, sTime.Seconds, entero, decimal);
+  sprintf(buffer, "| %02d:%02d:%02d | %d,%d °C |\r\n", sTime.Hours,
+          sTime.Minutes, sTime.Seconds, entero, decimal);
   f_open(&fil, "tabla.txt", FA_OPEN_EXISTING | FA_WRITE | FA_READ);
   f_lseek(&fil, fil.fsize);
   f_puts(buffer, &fil);
@@ -163,11 +167,10 @@ void flectura(FATFS fs, FIL fil) {
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  char line[100];
   uint8_t botones = 0;
   state_t estado = espera;
   event_t evento = null;
-  char last[100];
-  char currentLine[100];
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -200,28 +203,23 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 
   /* Incio de la sd */
-  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
   f_mount(&filesystem, "", 0);
-  if ( FR_NO_FILE == f_open(&file, "tabla.txt", FA_OPEN_ALWAYS | FA_WRITE | FA_READ)){
-	  f_lseek(&file, file.fsize);
-	  f_puts("|Hora|Temperatura|\n\r|-----|-----|\n\r", &file);
-  } else {
-	  while (f_gets(currentLine, sizeof(currentLine), &file) != 0){
-		  strcpy(last,currentLine);
-	  }
-	  HAL_UART_Transmit(&huart1, (uint8_t *) last, strlen(last), 100);
-	  HAL_UART_Transmit(&huart1, "\r", strlen("\r"), 100);
-  }
+  f_open(&file, "tabla.txt", FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
+  f_lseek(&file, file.fsize);
+  f_puts("|Hora|Temperatura|\n\r|-----|-----|\n\r", &file);
   f_close(&file);
-  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
+  HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_1);
+  HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_1);
 
   startTick= HAL_GetTick();
   offset = MINUTE_TICK_OFFSET;
 
-
   while (1) {
 	  botones = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_11) + HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12)*2;
-
+	  if(startTick + offset < HAL_GetTick()){
+		  startTick = HAL_GetTick();
+		  evento = timeout;
+	  }
 
 	  switch(botones){
 	  case 0:
@@ -232,16 +230,14 @@ int main(void)
 		  break;
 	  case 2:
 		  evento = bPush;
+		  offset = WAIT_2SEC_OFFSET;
+		  startTick = HAL_GetTick();
 		  break;
 	  case 3:
 		  evento = abPush;
 		  break;
 	  }
 
-	  if(startTick + offset < HAL_GetTick()){
-		  startTick = HAL_GetTick();
-		  evento = timeout;
-	  }
 	  fsm(&estado, evento);
     /* USER CODE END WHILE */
 
@@ -519,42 +515,12 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void fsm(state_t *estado,event_t evento){
-	//sprintf(timeStr,"%d %d %d\r\n",HAL_GetTick( )- startTick,*estado,evento);
-	  //HAL_UART_Transmit(&huart1, (uint8_t *) timeStr, strlen(timeStr), 100);
 	switch(*estado){
 	case espera:
 		switch(evento){
 		case timeout:
-			//HAL_UART_Transmit(&huart1, "TIMEOUT\r\n", strlen("TIMEOUT\r\n"), 100);
-			RTC_DateTypeDef sDate;
-			  RTC_TimeTypeDef sTime;
-			  int32_t adcValue;
-			  int32_t entero;
-			  int32_t decimal;
-			  char buffer[50];
-
-			  // Obtiene la fecha y hora actual del RTC
-			  HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-			  HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
-
-			  HAL_ADC_Start(&hadc1);
-			  if (HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK) {
-			    adcValue = HAL_ADC_GetValue(&hadc1);
-			  }
-			  HAL_ADC_Stop(&hadc1);
-			  adcValue = (((adcValue * TEMP_RESOLUTION) / 4096) * 330) - 50 * TEMP_RESOLUTION;
-			  entero = adcValue / TEMP_RESOLUTION;
-			  decimal = abs(adcValue % (entero * TEMP_RESOLUTION)) / 1000;
-
-			  // Formatea la hora como una cadena de caracteres y la guarda en el buffer
-			  sprintf(buffer, "| %02d:%02d:%02d | %d,%d °C |\r\n", sTime.Hours, sTime.Minutes, sTime.Seconds, entero, decimal);
-			  f_open(&file, "tabla.txt", FA_OPEN_EXISTING | FA_WRITE | FA_READ);
-			  f_lseek(&file, file.fsize);
-			  f_puts(buffer, &file);
-			  f_close(&file);
-			startTick = HAL_GetTick();
+			flectura(filesystem, file);
 			break;
-
 		case aPush:
 			*estado = waitA;
 			offset = WAIT_2SEC_OFFSET;
@@ -576,14 +542,12 @@ void fsm(state_t *estado,event_t evento){
 		break;
 
 	case waitA:
-		//HAL_UART_Transmit(&huart1, "WAITA\r\n", strlen("WAITA\r\n"), 100);
 		switch(evento){
 		case timeout:
+			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
 			RTC_GetTimeStr(timeStr);
 			GetTemperatura(timeStr);
 			*estado = espera;
-			startTick = HAL_GetTick();
-			offset = MINUTE_TICK_OFFSET;
 			break;
 		case aPush:
 			startTick = HAL_GetTick();
@@ -603,20 +567,9 @@ void fsm(state_t *estado,event_t evento){
 		break;
 
 	case waitB:
-		//HAL_UART_Transmit(&huart1, "WAITB\r\n", strlen("WAITB\r\n"), 100);
 		switch(evento){
 		case timeout:
-			char line[100];
-			f_open(&file, "tabla.txt", FA_READ);
-			f_lseek(&file, 0);
-			while (f_gets(line, sizeof(line), &file) != 0) {
-			  HAL_UART_Transmit(&huart1, (uint8_t *) line, strlen(line), 100);
-			  HAL_UART_Transmit(&huart1, "\r", strlen("\r"), 100);
-			}
-			f_close(&file);
 			*estado = espera;
-			startTick = HAL_GetTick();
-			offset = MINUTE_TICK_OFFSET;
 			break;
 		case aPush:
 			*estado = waitA;
@@ -639,17 +592,13 @@ void fsm(state_t *estado,event_t evento){
 		switch(evento){
 		case timeout:
 			f_open(&file, "tabla.txt", FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-			f_puts("|Hora|Temperatura|\n\r|-----|-----|\n\r", &file);
 			f_close(&file);
 
 			*estado = espera;
 			if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_1) == 1){
 				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
 			}
-			startTick = HAL_GetTick();
-			offset = MINUTE_TICK_OFFSET;
 			break;
-
 		case aPush:
 			*estado = waitA;
 			offset = WAIT_2SEC_OFFSET;
@@ -667,10 +616,7 @@ void fsm(state_t *estado,event_t evento){
 			}
 			break;
 		case abPush:
-			char line[100];
-			//sprintf(line,"%d\r\n",(HAL_GetTick() - startTick)%250);
-			//HAL_UART_Transmit(&huart1, (uint8_t *) line, strlen(line), 100);
-			if((HAL_GetTick() - startTick)%250 < 3){
+			if((HAL_GetTick() - startTick)%250 == 0){
 				HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
 				HAL_Delay(2);
 			}
