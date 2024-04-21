@@ -1,0 +1,2 @@
+../Core/Src/datalogger.c:7:6:GetTemperatura	32	static
+../Core/Src/datalogger.c:25:6:GetTemperatura_init	16	static
