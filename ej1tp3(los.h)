@@ -1,0 +1,39 @@
+/*
+ * tmr.h
+ *
+ *  Created on: Apr 15, 2024
+ *      Author: tomas
+ */
+
+#ifndef TMR_H_
+#define TMR_H_
+
+void configura_timer(void);
+void espera_ms(uint32_t ms);
+
+#endif /* TMR_H_ */
+
+
+#ifndef STARTUP_H
+#define STARTUP_H
+
+void _start(void);
+int main();
+void null_handler();
+
+#endif /* STARTUP_H */
+
+/*
+ * led.h
+ *
+ *  Created on: Apr 15, 2024
+ *      Author: tomas
+ */
+
+#ifndef LED_H_
+#define LED_H_
+void configura_led();
+void prende_led(void);
+void apaga_led(void);
+
+#endif /* LED_H_ */
